@@ -60,6 +60,7 @@
     .popup-card { background: var(--bg-light); padding: 1.5rem; border-radius: var(--radius); width: 100%; max-width: 360px; box-shadow: 0 8px 16px rgba(0,0,0,0.2);}
     .popup-card h4 { margin-bottom: 1rem; color: var(--text-dark); font-size: 1.2rem;}
     .popup-card .btn-group { display: flex; justify-content: flex-end; gap: 0.75rem;}
+    .readonly { background: #f5f5f5; color: #666; }
     @media (max-width: 768px) {
       #mainSection { flex-direction: column; }
       aside { width: 100%; }
@@ -72,16 +73,13 @@
 <body>
 <div id="loginContainer">
   <div>
-    <h2>
-      <span style="font-family: Arial; font-weight: bold; color: #275489;">NRL</span>&nbsp;
-      <span style="font-family: Arial; font-weight: 100; letter-spacing: -0.8px; color: #81B96B;">Inventory Tracker</span>&nbsp; &nbsp; &nbsp;
-      <span style="font-family: Arial; font-weight: normal; font-size: 0.5em; text-transform: lowercase; color: #275489;">ver 4.7</span>
-    </h2>
-    <input id="loginUser" placeholder="User ID" autocomplete="username">
-    <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password">
-    <button class="btn" onclick="validateLogin()">Login</button>
-    <div id="loginMessage"></div>
-  </div>
+  <h2>
+    <span style="font-family: Arial; font-weight: bold; color: #275489;">NRL</span>&nbsp;
+    <span style="font-family: Arial; font-weight: 100; letter-spacing: -0.8px; color: #81B96B;">Inventory Tracker</span>&nbsp;&nbsp;&nbsp;
+    <span style="font-family: Arial; font-weight: normal; font-size: 0.5em; text-transform: lowercase; color: #275489;">ver Adi </span>
+  </h2>
+  <button class="btn" onclick="googleLogin()">Sign in with Google</button>
+  <div id="loginMessage"></div>
 </div>
 <input type="hidden" id="user">
 <input type="hidden" id="role">
@@ -93,19 +91,28 @@
 <li data-view="quickSearchPanel">Search</li>
 <li data-view="searchSection">Tracker</li>
 <li id="auditTab" data-view="auditLogSection" style="display:none;">Audit Log</li>
+<li data-view="materialSearchTab">Material Search</li>
+<li data-view="documentSearchTab">Document Search</li>
+<li data-view="columnSearchTab">Column Search</li>
+<li data-view="chemicalSearchTab">Chemical Search</li>
+<li data-view="blankMatrixSearchTab">Blank Matrix Search</li>
 </ul>
 </aside>
 <main>
-  <header>
+ <header style="display: flex; align-items: center; justify-content: space-between;">
+  <div style="display: flex; gap: 1rem; align-items: center;">
     <div id="userDisplay"></div>
     <div id="roleDisplay"></div>
-  </header>
+  </div>
+  <button class="btn btn-secondary btn-sm" onclick="logoutUser()">Logout</button>
+</header>
+
   <div class="content">
 <section id="entryForm" class="view active card">
   <h3>Add Inventory</h3>
   <div class="form-group">
     <label>Area</label>
-    <select id="area" onchange="updateDrawers()"><option value="">Select Area</option></select>
+    <select id="area"><option value="">Select Area</option></select>
   </div>
   <div class="form-group">
     <label>Location</label>
@@ -113,22 +120,44 @@
   </div>
   <div class="form-group">
     <label>Type</label>
-    <select id="type"><option value=""> Select Type </option></select>
+    <select id="type" onchange="onTypeChange()"><option value="">Select Type</option></select>
   </div>
-  <div class="form-group" id="documentSubSection" style="display:none;">
-    <label>Document Sub Type</label>
-    <select id="documentSubType">
+  <div class="form-group" id="materialSubTypeGroup" style="display:none;">
+    <label>Sub Type</label>
+    <select id="materialSubType" onchange="onMaterialSubTypeChange()">
       <option value="">Select Sub Type</option>
-      <option>Project File</option>
-      <option>Calibration File</option>
-      <option>Method Validation File</option>
-      <option>Method Development Files</option>
-      <option>Other Files</option>
+      <option value="Stationery">Stationery</option>
+      <option value="Consumables">Consumables</option>
     </select>
   </div>
-  <div class="form-group">
-    <label>Description</label>
+  <div class="form-group" id="consumablesSubSubTypeGroup" style="display:none;">
+    <label>Sub-Sub Type</label>
+    <select id="consumablesSubSubType" onchange="onConsumablesSubSubTypeChange()">
+      <option value="">Select Sub-Sub Type</option>
+      <option value="Glassware">Glassware</option>
+      <option value="Plastic Ware">Plastic Ware</option>
+      <option value="Spares">Spares</option>
+    </select>
+  </div>
+  <div class="form-group" id="documentSubTypeGroup" style="display:none;">
+    <label>Document Sub Type</label>
+    <select id="documentSubType" onchange="onDocumentSubTypeChange()">
+      <option value="">Select Sub Type</option>
+      <option value="Project Files">Project Files</option>
+      <option value="Calibration and Performance Check Files">Calibration and Performance Check Files</option>
+      <option value="Method Validation Files">Method Validation Files</option>
+      <option value="Method Development Files">Method Development Files</option>
+      <option value="Other Files">Other Files</option>
+    </select>
+  </div>
+  <div class="form-group" id="descriptionSection">
+    <label id="descLabel">Description</label>
     <textarea id="description" rows="3"></textarea>
+    <button type="button" id="clearDescBtn" class="btn btn-sm" style="display:none;">Clear & Edit</button>
+    <div style="margin-top:8px;">
+      <label>Additional Remark</label>
+      <input type="text" id="descriptionRemark" placeholder="Any extra remark...">
+    </div>
   </div>
   <div class="form-group" style="display:flex;gap:0.5rem;">
     <input type="number" id="quantity" placeholder="Qty">
@@ -139,93 +168,271 @@
       <option>Bottle</option>
     </select>
   </div>
+
+  <!-- Hidden fields for popup data -->
+  <input type="hidden" id="colManufacturerField">
+  <input type="hidden" id="colBrandField">
+  <input type="hidden" id="colStationaryPhaseField">
+  <input type="hidden" id="colPartNoField">
+  <input type="hidden" id="colLengthField">
+  <input type="hidden" id="colInternalDiameterField">
+  <input type="hidden" id="colParticleSizeField">
+  <input type="hidden" id="colPoreSizeField">
+  <input type="hidden" id="colRemarksField">
+  <input type="hidden" id="chemNameField">
+  <input type="hidden" id="chemManufacturerField">
+  <input type="hidden" id="chemGradeField">
+  <input type="hidden" id="chemRecvDateField">
+  <input type="hidden" id="chemExpDateField">
+  <input type="hidden" id="chemRemarksField">
+  <input type="hidden" id="matrixTypeField">
+  <input type="hidden" id="matrixAnticoagulantField">
+  <input type="hidden" id="matrixFractionsField">
+  <input type="hidden" id="matrixRecvDateField">
+  <input type="hidden" id="matrixExpDateField">
+  <input type="hidden" id="matrixSupplierField">
+  <input type="hidden" id="matrixRemarksField">
+
   <button class="btn" onclick="addEntry()">Submit</button>
   <div id="entryMessage"></div>
 </section>
 
-    <section id="quickSearchPanel" class="view card">
-      <h3>Quick Inventory Search</h3>
-      <div class="form-group">
-        <label>Area</label>
-        <select id="quickArea" onchange="updateQuickLocations()"><option value="">Select Area</option></select>
-      </div>
-      <div class="form-group">
-        <label>Location</label>
-        <select id="quickLocation"><option value="">Select Location</option></select>
-      </div>
-      <div class="form-group">
-        <label>Description</label>
-        <input type="text" id="quickDesc" placeholder="Search by Description" oninput="debouncedQuickSearch()">
-      </div>
-      <button class="btn btn-sm" onclick="renderQuickSearch()">Search</button>
-      <button class="btn btn-sm" onclick="exportQuickSearchToCSV()">Export CSV</button>
-      <div class="table-responsive" style="margin-top:1rem;">
-        <table>
-          <thead>
-            <tr> <th>Sr No</th> <th>Area</th> <th>Location</th> <th>Description</th> <th>Available</th> <th>Actions</th> </tr>
-          </thead>
-          <tbody id="quickSearchTableBody"></tbody>
-        </table>
-      </div>
-    </section>
-    <section id="searchSection" class="view card">
-      <h3>Search Inventory</h3>
-      <div class="form-group">
-        <label>Area</label>
-        <select id="areaFilter" onchange="updateSearchLocations()"><option value="">Select Area</option></select>
-      </div>
-      <div class="form-group">
-        <label>Location</label>
-        <select id="locationFilter"><option value="">Select Location</option></select>
-      </div>
-      <div class="form-group">
-        <label>Description</label>
-        <input id="searchBox" placeholder="Search..." oninput="debouncedFilterInventory()">
-      </div>
-      <button class="btn btn-sm" style="min-width: 100px;" onclick="filterInventory()">Search</button>
-      <button class="btn btn-sm" style="min-width: 100px;" onclick="exportSearchToCSV()">Export CSV</button>
-      <div id="searchResultsSection" class="table-responsive" style="display:none;">
-        <table>
-          <thead>
-           <tr>
-             <th>Sr No</th>
-             <th>Timestamp</th>
-             <th>Area</th>
-             <th>Location</th>
-             <th>Description</th>
-             <th>Stored</th>
-             <th>Entry By</th>
-             <th>Moved</th>
-             <th>From</th>
-             <th>By</th>
-             <th>Retrieve History</th>
-             <th>Move History</th>
-             <th>Remaining</th>
-             <th>Actions</th>
-           </tr>
-          </thead>
-          <tbody id="searchTableBody"></tbody>
-        </table>
-      </div>
-    </section>
-    <section id="auditLogSection" class="view card">
-      <h3>Audit Log</h3>
-      <div class="table-responsive">
-        <table>
-          <thead>
-            <tr><th>Timestamp</th><th>Action</th><th>Area</th><th>Location</th><th>Quantity</th><th>Unit</th><th>Remark</th><th>User</th></tr>
-          </thead>
-          <tbody id="auditLogBody"></tbody>
-        </table>
-      </div>
-      <button class="btn btn-sm" onclick="exportLogToCSV()">Export Audit Log CSV</button>
-    </section>
+<!-- Column Details Popup -->
+<div id="columnDetailsPopup" class="popup-overlay" style="display:none;">
+  <div class="popup-card">
+    <h4>Enter Column Details</h4>
+    <div class="form-group"><label>Manufacturer</label><input id="colManufacturer" type="text"></div>
+    <div class="form-group"><label>Brand</label><input id="colBrand" type="text"></div>
+    <div class="form-group"><label>Stationary Phase</label><input id="colStationaryPhase" type="text"></div>
+    <div class="form-group"><label>Part No</label><input id="colPartNo" type="text"></div>
+    <div class="form-group"><label>Length</label><input id="colLength" type="text"></div>
+    <div class="form-group"><label>Internal Diameter</label><input id="colInternalDiameter" type="text"></div>
+    <div class="form-group"><label>Particle Size</label><input id="colParticleSize" type="text"></div>
+    <div class="form-group"><label>Pore Size</label><input id="colPoreSize" type="text"></div>
+    <div class="form-group"><label>Remarks</label><input id="colRemarks" type="text"></div>
+    <div class="btn-group">
+      <button class="btn btn-secondary btn-sm" type="button" onclick="closeColumnPopup()">Cancel</button>
+      <button class="btn btn-sm" type="button" onclick="submitColumnPopup()">OK</button>
+    </div>
   </div>
+</div>
+<!-- Chemical Details Popup -->
+<div id="chemicalDetailsPopup" class="popup-overlay" style="display:none;">
+  <div class="popup-card">
+    <h4>Enter Chemical Details</h4>
+    <div class="form-group"><label>Chemical Name</label><input id="chemName" type="text"></div>
+    <div class="form-group"><label>Manufacturer</label><input id="chemManufacturer" type="text"></div>
+    <div class="form-group"><label>Grade</label><input id="chemGrade" type="text"></div>
+    <div class="form-group"><label>Received Date</label><input id="chemRecvDate" type="date"></div>
+    <div class="form-group"><label>Expiry Date</label><input id="chemExpDate" type="date"></div>
+    <div class="form-group"><label>Remarks</label><input id="chemRemarks" type="text"></div>
+    <div class="btn-group">
+      <button class="btn btn-secondary btn-sm" type="button" onclick="closeChemicalPopup()">Cancel</button>
+      <button class="btn btn-sm" type="button" onclick="submitChemicalPopup()">OK</button>
+    </div>
+  </div>
+</div>
+<!-- Blank Matrix Popup -->
+<div id="blankMatrixPopup" class="popup-overlay" style="display:none;">
+  <div class="popup-card">
+    <h4>Enter Blank Matrix Details</h4>
+    <div class="form-group"><label>Type of Matrix</label><input id="matrixType" type="text"></div>
+    <div class="form-group"><label>Anticoagulant</label><input id="matrixAnticoagulant" type="text"></div>
+    <div class="form-group"><label>No of Fractions</label><input id="matrixFractions" type="number"></div>
+    <div class="form-group"><label>Received Date</label><input id="matrixRecvDate" type="date"></div>
+    <div class="form-group"><label>Expiry Date</label><input id="matrixExpDate" type="date"></div>
+    <div class="form-group"><label>Supplier</label><input id="matrixSupplier" type="text"></div>
+    <div class="form-group"><label>Remarks</label><input id="matrixRemarks" type="text"></div>
+    <div class="btn-group">
+      <button class="btn btn-secondary btn-sm" type="button" onclick="closeBlankMatrixPopup()">Cancel</button>
+      <button class="btn btn-sm" type="button" onclick="submitBlankMatrixPopup()">OK</button>
+    </div>
+  </div>
+</div>
+<section id="quickSearchPanel" class="view card">
+  <h3>Quick Inventory Search</h3>
+  <div class="form-group">
+    <label>Area</label>
+    <select id="quickArea" onchange="updateQuickLocations()"><option value="">Select Area</option></select>
+  </div>
+  <div class="form-group">
+    <label>Location</label>
+    <select id="quickLocation"><option value="">Select Location</option></select>
+  </div>
+  <div class="form-group">
+    <label>Description</label>
+    <input type="text" id="quickDesc" placeholder="Search by Description" oninput="debouncedQuickSearch()">
+  </div>
+  <button class="btn btn-sm" onclick="renderQuickSearch()">Search</button>
+  <button class="btn btn-sm" onclick="exportQuickSearchToCSV()">Export CSV</button>
+  <div class="table-responsive" style="margin-top:1rem;">
+    <table>
+      <thead>
+        <tr> <th>Sr No</th> <th>Area</th> <th>Location</th> <th>Description</th> <th>Available</th> <th>Actions</th> </tr>
+      </thead>
+      <tbody id="quickSearchTableBody"></tbody>
+    </table>
+  </div>
+</section>
+<section id="searchSection" class="view card">
+  <h3>Search Inventory</h3>
+  <div class="form-group">
+    <label>Area</label>
+    <select id="areaFilter" onchange="updateSearchLocations()"><option value="">Select Area</option></select>
+  </div>
+  <div class="form-group">
+    <label>Location</label>
+    <select id="locationFilter"><option value="">Select Location</option></select>
+  </div>
+  <div class="form-group">
+    <label>Description</label>
+    <input id="searchBox" placeholder="Search..." oninput="debouncedFilterInventory()">
+  </div>
+  <button class="btn btn-sm" style="min-width: 100px;" onclick="filterInventory()">Search</button>
+  <button class="btn btn-sm" style="min-width: 100px;" onclick="exportSearchToCSV()">Export CSV</button>
+  <div id="searchResultsSection" class="table-responsive" style="display:none;">
+    <table>
+      <thead>
+       <tr>
+         <th>Sr No</th>
+         <th>Timestamp</th>
+         <th>Area</th>
+         <th>Location</th>
+         <th>Description</th>
+         <th>Stored</th>
+         <th>Entry By</th>
+         <th>Moved</th>
+         <th>From</th>
+         <th>By</th>
+         <th>Retrieve History</th>
+         <th>Move History</th>
+         <th>Remaining</th>
+         <th>Actions</th>
+       </tr>
+      </thead>
+      <tbody id="searchTableBody"></tbody>
+    </table>
+  </div>
+</section>
+<section id="auditLogSection" class="view card">
+  <h3>Audit Log</h3>
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr><th>Timestamp</th><th>Action</th><th>Area</th><th>Location</th><th>Quantity</th><th>Unit</th><th>Remark</th><th>User</th></tr>
+      </thead>
+      <tbody id="auditLogBody"></tbody>
+    </table>
+  </div>
+  <button class="btn btn-sm" onclick="exportLogToCSV()">Export Audit Log CSV</button>
+</section>
+
+<!-- Material Search -->
+<section id="materialSearchTab" class="view card">
+  <h3>Material Search</h3>
+  <div class="form-group"><label>Sub type</label><input type="text" id="matSubType"></div>
+  <div class="form-group"><label>Sub Sub type</label><input type="text" id="matSubSubType"></div>
+  <div class="form-group"><label>Area</label><input type="text" id="matArea"></div>
+  <div class="form-group"><label>Location</label><input type="text" id="matLocation"></div>
+  <div class="form-group"><label>Description</label><input type="text" id="matDesc"></div>
+  <button class="btn btn-sm" onclick="renderMaterialSearch()">Search</button>
+  <div class="table-responsive"><table>
+    <thead><tr>
+      <th>Sr No.</th><th>Sub type</th><th>Sub Sub type</th><th>Area</th><th>Location</th><th>Description</th><th>Available Quantity</th><th>Action</th>
+    </tr></thead>
+    <tbody id="materialSearchBody"></tbody>
+  </table></div>
+</section>
+<!-- Document Search -->
+<section id="documentSearchTab" class="view card">
+  <h3>Document Search</h3>
+  <div class="form-group"><label>Sub type</label><input type="text" id="docSubType"></div>
+  <div class="form-group"><label>Area</label><input type="text" id="docArea"></div>
+  <div class="form-group"><label>Location</label><input type="text" id="docLocation"></div>
+  <div class="form-group"><label>Description</label><input type="text" id="docDesc"></div>
+  <button class="btn btn-sm" onclick="renderDocumentSearch()">Search</button>
+  <div class="table-responsive"><table>
+    <thead><tr>
+      <th>Sr No.</th><th>Sub type</th><th>Area</th><th>Location</th><th>Description</th><th>Available Quantity</th><th>Action</th>
+    </tr></thead>
+    <tbody id="documentSearchBody"></tbody>
+  </table></div>
+</section>
+<!-- Column Search -->
+<section id="columnSearchTab" class="view card">
+  <h3>Column Search</h3>
+  <div class="form-group"><label>Manufacturer</label><input type="text" id="colManu"></div>
+  <div class="form-group"><label>Brand</label><input type="text" id="colBrand"></div>
+  <div class="form-group"><label>Stationary Phase</label><input type="text" id="colStation"></div>
+  <div class="form-group"><label>Part No</label><input type="text" id="colPart"></div>
+  <div class="form-group"><label>Length</label><input type="text" id="colLength"></div>
+  <div class="form-group"><label>Internal Diameter</label><input type="text" id="colIntDia"></div>
+  <div class="form-group"><label>Particle size</label><input type="text" id="colPartSize"></div>
+  <div class="form-group"><label>Pore Size</label><input type="text" id="colPore"></div>
+  <div class="form-group"><label>Remarks</label><input type="text" id="colRemark"></div>
+  <div class="form-group"><label>Area</label><input type="text" id="colArea"></div>
+  <div class="form-group"><label>Location</label><input type="text" id="colLocation"></div>
+  <button class="btn btn-sm" onclick="renderColumnSearch()">Search</button>
+  <div class="table-responsive"><table>
+    <thead><tr>
+      <th>Sr No.</th><th>Manufacturer</th><th>Brand</th><th>Stationary Phase</th><th>Part No</th>
+      <th>Length</th><th>Internal Diameter</th><th>Particle size</th><th>Pore Size</th>
+      <th>Remarks</th><th>Area</th><th>Location</th><th>Available Quantity</th><th>Action</th>
+    </tr></thead>
+    <tbody id="columnSearchBody"></tbody>
+  </table></div>
+</section>
+<!-- Chemical Search -->
+<section id="chemicalSearchTab" class="view card">
+  <h3>Chemical Search</h3>
+  <div class="form-group"><label>Chemical Name</label><input type="text" id="chemName"></div>
+  <div class="form-group"><label>Manufacturer</label><input type="text" id="chemManu"></div>
+  <div class="form-group"><label>Grade</label><input type="text" id="chemGrade"></div>
+  <div class="form-group"><label>Received Date</label><input type="text" id="chemRecv"></div>
+  <div class="form-group"><label>Expiry Date</label><input type="text" id="chemExp"></div>
+  <div class="form-group"><label>Remarks</label><input type="text" id="chemRemark"></div>
+  <div class="form-group"><label>Area</label><input type="text" id="chemArea"></div>
+  <div class="form-group"><label>Location</label><input type="text" id="chemLocation"></div>
+  <button class="btn btn-sm" onclick="renderChemicalSearch()">Search</button>
+  <div class="table-responsive"><table>
+    <thead><tr>
+      <th>Sr No.</th><th>Chemical Name</th><th>Manufacturer</th><th>Grade</th>
+      <th>Received Date</th><th>Expiry Date</th><th>Remarks</th><th>Area</th><th>Location</th><th>Available Quantity</th><th>Action</th>
+    </tr></thead>
+    <tbody id="chemicalSearchBody"></tbody>
+  </table></div>
+</section>
+<!-- Blank Matrix Search -->
+<section id="blankMatrixSearchTab" class="view card">
+  <h3>Blank Matrix Search</h3>
+  <div class="form-group"><label>Type of Matrix</label><input type="text" id="matType"></div>
+  <div class="form-group"><label>Anticoagulant</label><input type="text" id="matAntico"></div>
+  <div class="form-group"><label>No of Fractions</label><input type="text" id="matFrac"></div>
+  <div class="form-group"><label>Received Date</label><input type="text" id="matRecv"></div>
+  <div class="form-group"><label>Expiry Date</label><input type="text" id="matExp"></div>
+  <div class="form-group"><label>Supplier</label><input type="text" id="matSupplier"></div>
+  <div class="form-group"><label>Remarks</label><input type="text" id="matBMRemark"></div>
+  <div class="form-group"><label>Area</label><input type="text" id="matBMArea"></div>
+  <div class="form-group"><label>Location</label><input type="text" id="matBMLocation"></div>
+  <button class="btn btn-sm" onclick="renderBlankMatrixSearch()">Search</button>
+  <div class="table-responsive"><table>
+    <thead><tr>
+      <th>Sr No.</th><th>Type of Matrix</th><th>Anticoagulant</th><th>No of Fractions</th>
+      <th>Received Date</th><th>Expiry Date</th><th>Supplier</th><th>Remarks</th>
+      <th>Area</th><th>Location</th><th>Available Quantity</th><th>Action</th>
+    </tr></thead>
+    <tbody id="blankMatrixSearchBody"></tbody>
+  </table></div>
+</section>
+</div>
 </main>
 </div>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+
 <script>
+
 const firebaseConfig = {
   apiKey: "AIzaSyB5aEm4j9kXGOJebNctqa9mTdnZv_-5gAE",
   authDomain: "inventory-db-6d48d.firebaseapp.com",
@@ -236,19 +443,55 @@ const firebaseConfig = {
   appId: "1:1070275543298:web:dffe9a7cda38ed6ae4021b"
 };
 firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const provider = new firebase.auth.GoogleAuthProvider();
+
+function googleLogin() {
+  auth.signInWithPopup(provider)
+    .then(result => {
+      const user = result.user;
+      const email = user.email.toLowerCase();
+const role = allowedEmails[email] || null;
+
+      if (!role) {
+        document.getElementById('loginMessage').innerHTML = '<div class="error">Unauthorized user</div>';
+        auth.signOut();
+        return;
+      }
+
+      document.getElementById('loginContainer').style.display = 'none';
+      document.getElementById('mainSection').classList.add('active');
+      document.getElementById('userDisplay').innerText = email;
+      document.getElementById('roleDisplay').innerText = role;
+      if (["Group Leader", "HOD"].includes(role)) {
+        document.getElementById("auditTab").style.display = "block";
+      }
+      document.getElementById('user').value = email;
+      document.getElementById('role').value = role;
+      populateFilters();
+      db.ref('inventory').once('value').then(s => {
+        inventoryData = s.val() || {};
+        renderInventoryTable();
+      });
+      db.ref('log').once('value').then(s => {
+        logData = s.val() || {};
+        renderInventoryTable();
+      });    })
+    .catch(error => {
+      console.error(error);
+      document.getElementById('loginMessage').innerHTML = '<div class="error">Login failed</div>';
+    });
+}
+
 const db = firebase.database();
 
-const userRoles = {
-  "Aakashdeep": { password: "Nrl@123", role: "Analyst" },
-  "Utsav": { password: "Nrl@123", role: "Analyst" },
-  "Raj": { password: "Nrl@123", role: "Analyst" },
-  "Parth": { password: "Nrl@123", role: "Analyst" },
-  "Kanal": { password: "Nrl@123", role: "Analyst" },
-  "Pranav": { password: "Nrl@123", role: "Group Leader" },
-  "Riddhi": { password: "Nrl@123", role: "Analyst" },
-  "RiddhiQC": { password: "Nrl@123", role: "QC" },
-  "Sanket": { password: "Nrl@123", role: "HOD" }
+const allowedEmails = {
+  "aakashdeepraval@gmail.com": "Analyst",
+  "example2@gmail.com": "HOD",
+  "example3@gmail.com": "QC"
 };
+
 
 const drawerMap = {
   "Common Corridor": ["C01A","C01B","C02A","C02B","C02C","C03A","C03B","C04A","C04B","C04C","C05A","C05B","C06A","C06B","C06C","C07A","C07B","C08A","C08B","C08C","C09A","C09B","C10A",
@@ -286,6 +529,16 @@ const storageTypeRestrictions = {
   }
 };
 
+let inventoryData = {}, logData = {};
+
+
+
+function getISTTimestamp() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 330); // +5:30 offset
+  return now.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 function populateFilters() {
   const areas = Object.keys(drawerMap);
   ['area', 'areaFilter', 'quickArea'].forEach(id => {
@@ -307,20 +560,37 @@ function populateFilters() {
       });
     }
   });
+  const addArea = document.getElementById("area");
+  if (addArea) addArea.onchange = updateDrawers;
+  updateDrawers();
 }
+
+function logoutUser() {
+  if (confirm("Are you sure you want to logout?")) {
+    auth.signOut().then(() => {
+      document.getElementById('mainSection').classList.remove('active');
+      document.getElementById('loginContainer').style.display = 'flex';
+      document.getElementById('userDisplay').innerText = '';
+      document.getElementById('roleDisplay').innerText = '';
+    });
+  }
+}
+
 function updateDrawers() {
-  const area = document.getElementById("area").value;
+  const area = document.getElementById("area") ? document.getElementById("area").value : "";
   const locSelect = document.getElementById("location");
+  if (!locSelect) return;
   locSelect.innerHTML = '<option value="">Select Storage Location</option>';
   if (drawerMap[area]) {
     drawerMap[area].forEach(d => {
       locSelect.appendChild(Object.assign(document.createElement("option"), { value: d, textContent: d }));
     });
   }
+
   const typeSelect = document.getElementById("type");
+  if (!typeSelect) return;
   typeSelect.innerHTML = '<option value="">Select Type</option>';
 
-  // If Chemical Room, add location-specific restriction on type
   locSelect.onchange = function () {
     const location = locSelect.value;
     typeSelect.innerHTML = '<option value="">Select Type</option>';
@@ -334,91 +604,114 @@ function updateDrawers() {
         return;
       }
     }
-    // Default: area-based types
     if (typeMap[area]) typeMap[area].forEach(t => typeSelect.appendChild(Object.assign(document.createElement("option"), { value: t, textContent: t })));
   };
-
-  // Trigger type options if a location is already selected
   if (locSelect.value) locSelect.onchange();
-document.getElementById("type").onchange = function() {
-  const selectedType = this.value;
-  const docSubSection = document.getElementById("documentSubSection");
-  if (selectedType === "Document") {
-    docSubSection.style.display = "";
-  } else {
-    docSubSection.style.display = "none";
-    document.getElementById("documentSubType").value = "";
-  }
-};
-
+}
+// --- Add Tab Dynamic Logic and Popup Handlers ---
+function onTypeChange() {
+  const type = document.getElementById('type').value;
+  document.getElementById('materialSubTypeGroup').style.display = (type === 'Material') ? '' : 'none';
+  document.getElementById('consumablesSubSubTypeGroup').style.display = 'none';
+  document.getElementById('documentSubTypeGroup').style.display = (type === 'Document') ? '' : 'none';
+  if (type === 'Column') openColumnPopup();
+  else if (type === 'Chemical') openChemicalPopup();
+  else if (type === 'Blank Matrix') openBlankMatrixPopup();
+}
+function onMaterialSubTypeChange() {
+  const subType = document.getElementById('materialSubType').value;
+  document.getElementById('consumablesSubSubTypeGroup').style.display = (subType === 'Consumables') ? '' : 'none';
+}
+function onConsumablesSubSubTypeChange() {}
+function onDocumentSubTypeChange() {}
+function openColumnPopup() { document.getElementById('columnDetailsPopup').style.display = ''; }
+function closeColumnPopup() { document.getElementById('columnDetailsPopup').style.display = 'none'; }
+function openChemicalPopup() { document.getElementById('chemicalDetailsPopup').style.display = ''; }
+function closeChemicalPopup() { document.getElementById('chemicalDetailsPopup').style.display = 'none'; }
+function openBlankMatrixPopup() { document.getElementById('blankMatrixPopup').style.display = ''; }
+function closeBlankMatrixPopup() { document.getElementById('blankMatrixPopup').style.display = 'none'; }
+function submitColumnPopup() {
+  document.getElementById('colManufacturerField').value = document.getElementById('colManufacturer').value;
+  document.getElementById('colBrandField').value = document.getElementById('colBrand').value;
+  document.getElementById('colStationaryPhaseField').value = document.getElementById('colStationaryPhase').value;
+  document.getElementById('colPartNoField').value = document.getElementById('colPartNo').value;
+  document.getElementById('colLengthField').value = document.getElementById('colLength').value;
+  document.getElementById('colInternalDiameterField').value = document.getElementById('colInternalDiameter').value;
+  document.getElementById('colParticleSizeField').value = document.getElementById('colParticleSize').value;
+  document.getElementById('colPoreSizeField').value = document.getElementById('colPoreSize').value;
+  document.getElementById('colRemarksField').value = document.getElementById('colRemarks').value;
+  closeColumnPopup();
+}
+function submitChemicalPopup() {
+  document.getElementById('chemNameField').value = document.getElementById('chemName').value;
+  document.getElementById('chemManufacturerField').value = document.getElementById('chemManufacturer').value;
+  document.getElementById('chemGradeField').value = document.getElementById('chemGrade').value;
+  document.getElementById('chemRecvDateField').value = document.getElementById('chemRecvDate').value;
+  document.getElementById('chemExpDateField').value = document.getElementById('chemExpDate').value;
+  document.getElementById('chemRemarksField').value = document.getElementById('chemRemarks').value;
+  closeChemicalPopup();
+}
+function submitBlankMatrixPopup() {
+  document.getElementById('matrixTypeField').value = document.getElementById('matrixType').value;
+  document.getElementById('matrixAnticoagulantField').value = document.getElementById('matrixAnticoagulant').value;
+  document.getElementById('matrixFractionsField').value = document.getElementById('matrixFractions').value;
+  document.getElementById('matrixRecvDateField').value = document.getElementById('matrixRecvDate').value;
+  document.getElementById('matrixExpDateField').value = document.getElementById('matrixExpDate').value;
+  document.getElementById('matrixSupplierField').value = document.getElementById('matrixSupplier').value;
+  document.getElementById('matrixRemarksField').value = document.getElementById('matrixRemarks').value;
+  closeBlankMatrixPopup();
 }
 
-
-function updateSearchLocations() {
-  const area = document.getElementById('areaFilter').value;
-  const locFilter = document.getElementById('locationFilter');
-  locFilter.innerHTML = '<option value="">Select Location</option>';
-  if (drawerMap[area]) drawerMap[area].forEach(l => locFilter.appendChild(Object.assign(document.createElement('option'), { value: l, textContent: l })));
-}
-function updateQuickLocations() {
-  const area = document.getElementById('quickArea').value;
-  const locSel = document.getElementById('quickLocation');
-  locSel.innerHTML = '<option value="">Select Location</option>';
-  (drawerMap[area] || []).forEach(loc => {
-    locSel.appendChild(Object.assign(document.createElement('option'), { value: loc, textContent: loc }));
-  });
-}
-function validateLogin() {
-  const u = document.getElementById('loginUser').value.trim();
-  const p = document.getElementById('loginPass').value.trim();
-  if (!u || !p) {
-    document.getElementById('loginMessage').innerHTML = '<div class="error">Please enter username and password</div>';
-    return;
-  }
-  if (userRoles[u] && userRoles[u].password === p) {
-    document.getElementById('loginContainer').style.display = 'none';
-    document.getElementById('mainSection').classList.add('active');
-    document.getElementById('userDisplay').innerText = u;
-    document.getElementById('roleDisplay').innerText = userRoles[u].role;
-    if (["Group Leader", "HOD"].includes(userRoles[u].role)) document.getElementById("auditTab").style.display = "block";
-    document.getElementById('user').value = u;
-    document.getElementById('role').value = userRoles[u].role;
-    populateFilters();
-    db.ref('inventory').once('value').then(s => { inventoryData = s.val() || {}; renderInventoryTable(); });
-    db.ref('log').once('value').then(s => { logData = s.val() || {}; renderInventoryTable(); });
-  } else {
-    document.getElementById('loginMessage').innerHTML = '<div class="error">Invalid credentials</div>';
-  }
-}
-function getISTTimestamp() {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() + 330); // +5:30 offset
-  return now.toISOString().slice(0, 19).replace('T', ' ');
-}
-
-
+// --- Add Entry Logic ---
 function addEntry() {
-  const role = document.getElementById("role").value;
+  const role = document.getElementById("role") ? document.getElementById("role").value : "";
   if (role === "QC") return;
-  const user = document.getElementById("user").value;
-  const area = document.getElementById("area").value;
-  const location = document.getElementById("location").value;
-  const type = document.getElementById("type").value;
-const documentSubType = document.getElementById("documentSubType").value;
+  const user = document.getElementById("user") ? document.getElementById("user").value : "";
+  const area = document.getElementById("area") ? document.getElementById("area").value : "";
+  const location = document.getElementById("location") ? document.getElementById("location").value : "";
+  const type = document.getElementById("type") ? document.getElementById("type").value : "";
+  const materialSubType = document.getElementById("materialSubType") ? document.getElementById("materialSubType").value : "";
+  const consumablesSubSubType = document.getElementById("consumablesSubSubType") ? document.getElementById("consumablesSubSubType").value : "";
+  const documentSubType = document.getElementById("documentSubType") ? document.getElementById("documentSubType").value : "";
+  const description = document.getElementById("description") ? document.getElementById("description").value.trim() : "";
+  const descriptionRemark = document.getElementById("descriptionRemark") ? document.getElementById("descriptionRemark").value.trim() : "";
+  const quantity = parseInt(document.getElementById("quantity") ? document.getElementById("quantity").value : "0", 10);
+  const unit = document.getElementById("unit") ? document.getElementById("unit").value : "";
 
-  const description = document.getElementById("description").value.trim();
-  const quantity = parseInt(document.getElementById("quantity").value, 10);
-  const unit = document.getElementById("unit").value;
+  // Column fields
+  const colManufacturer = document.getElementById('colManufacturerField').value;
+  const colBrand = document.getElementById('colBrandField').value;
+  const colStationaryPhase = document.getElementById('colStationaryPhaseField').value;
+  const colPartNo = document.getElementById('colPartNoField').value;
+  const colLength = document.getElementById('colLengthField').value;
+  const colInternalDiameter = document.getElementById('colInternalDiameterField').value;
+  const colParticleSize = document.getElementById('colParticleSizeField').value;
+  const colPoreSize = document.getElementById('colPoreSizeField').value;
+  const colRemarks = document.getElementById('colRemarksField').value;
+  // Chemical fields
+  const chemName = document.getElementById('chemNameField').value;
+  const chemManufacturer = document.getElementById('chemManufacturerField').value;
+  const chemGrade = document.getElementById('chemGradeField').value;
+  const chemRecvDate = document.getElementById('chemRecvDateField').value;
+  const chemExpDate = document.getElementById('chemExpDateField').value;
+  const chemRemarks = document.getElementById('chemRemarksField').value;
+  // Blank matrix fields
+  const matrixType = document.getElementById('matrixTypeField').value;
+  const matrixAnticoagulant = document.getElementById('matrixAnticoagulantField').value;
+  const matrixFractions = document.getElementById('matrixFractionsField').value;
+  const matrixRecvDate = document.getElementById('matrixRecvDateField').value;
+  const matrixExpDate = document.getElementById('matrixExpDateField').value;
+  const matrixSupplier = document.getElementById('matrixSupplierField').value;
+  const matrixRemarks = document.getElementById('matrixRemarksField').value;
+
   if (!area || !location || !type || !description || !Number.isInteger(quantity) || quantity <= 0) {
     document.getElementById("entryMessage").innerHTML = '<div class="error">All fields required</div>';
     return;
   }
-  // Area-type compatibility
   if (!(typeMap[area] || []).includes(type)) {
     document.getElementById("entryMessage").innerHTML = '<div class="error">Type not allowed for this Area</div>';
     return;
   }
-  // Storage type restriction
   if (
     storageTypeRestrictions[area] &&
     storageTypeRestrictions[area][location] &&
@@ -427,73 +720,40 @@ const documentSubType = document.getElementById("documentSubType").value;
     document.getElementById("entryMessage").innerHTML = `<div class="error">Only [${storageTypeRestrictions[area][location].join(", ")}] can be stored in ${location}</div>`;
     return;
   }
-if (type === "Document" && !documentSubType) {
-  document.getElementById("entryMessage").innerHTML = '<div class="error">Select document sub type</div>';
-  return;
-}
+  if (type === "Document" && !documentSubType) {
+    document.getElementById("entryMessage").innerHTML = '<div class="error">Select document sub type</div>';
+    return;
+  }
 
   const timestamp = getISTTimestamp();
   const ref = db.ref("inventory").push();
   ref.set({
-  user, created_by: user, created_at: timestamp, last_updated_at: timestamp, area, location, type, description, unit,
-  total: quantity, moved: 0, retrieved: 0, remaining: quantity,
-  document_subtype: (type === "Document" ? documentSubType : "")
-});
+    user, created_by: user, created_at: timestamp, last_updated_at: timestamp, area, location, type, description, unit,
+    total: quantity, moved: 0, retrieved: 0, remaining: quantity,
+    document_subtype: (type === "Document" ? documentSubType : ""),
+    material_subtype: (type === "Material" ? materialSubType : ""),
+    consumables_subsubtype: (materialSubType === "Consumables" ? consumablesSubSubType : ""),
+    description_remark: descriptionRemark,
+    colManufacturer, colBrand, colStationaryPhase, colPartNo, colLength, colInternalDiameter, colParticleSize, colPoreSize, colRemarks,
+    chemName, chemManufacturer, chemGrade, chemRecvDate, chemExpDate, chemRemarks,
+    matrixType, matrixAnticoagulant, matrixFractions, matrixRecvDate, matrixExpDate, matrixSupplier, matrixRemarks
+  });
   db.ref("log").push({ ref_id: ref.key, action: "store", quantity, unit, area, location, user, timestamp, remark: "" });
   document.getElementById("entryMessage").innerHTML = '<div class="success">Entry added</div>';
-  ["area", "location", "type", "description", "quantity"].forEach(id => document.getElementById(id).value = "");
-  document.getElementById("unit").selectedIndex = 0;
-}
-
-
-let inventoryData = {}, logData = {};
-function renderInventoryTable() {
-  const tbl = document.getElementById('searchTableBody'); tbl.innerHTML = '';
-  let entries = Object.entries(inventoryData || {});
-  entries = entries.filter(([_, row]) => row.remaining > 0);
-  entries.reverse().forEach(([key, row], i) => {
-    const sr = i + 1;
-    const ts = row.created_at || '';
-    const stored = row.total || 0;
-    const moved = row.moved || 0;
-    const movedFrom = row.moved_from || '';
-    const movedBy = row.moved_by || '';
-    const remaining = row.remaining || 0;
-    const unit = row.unit || '';
-    let retrieveHist = [];
-    Object.values(logData).forEach(l => {
-      if (l.ref_id === key && l.action === 'retrieve')
-        retrieveHist.push(`${l.quantity} ${l.unit} | ${l.remark || ''} @${l.timestamp} by ${l.user}`);
-    });
-    const retrieveHistory = retrieveHist.join('<br>');
-    let moveHist = [];
-    Object.values(logData || {}).forEach(l => {
-      if (l.ref_id === key && (l.action === 'move-in' || l.action === 'move-out'))
-        moveHist.push(`${l.action === 'move-in' ? 'IN' : 'OUT'}: ${l.quantity} ${l.unit} | ${l.remark || ''} @${l.timestamp} by ${l.user}`);
-    });
-    const moveHistory = moveHist.join('<br>');
-    const role = document.getElementById('role').value;
-    let actions = '';
-    if (['Analyst', 'Group Leader', 'HOD'].includes(role)) {
-      actions += `<button class="btn btn-sm" onclick="showRetrievePrompt('${key}',${remaining},'${unit}')">Retrieve</button>`;
-      actions += `<button class="btn btn-secondary btn-sm" onclick="showMovePrompt('${key}',${remaining},'${unit}')">Move</button>`;
-    }
-    if (['Group Leader', 'HOD'].includes(role)) {
-      actions += `<button class="btn btn-danger btn-sm" onclick="deleteEntry('${key}')">Delete</button>`;
-    }
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      `<td>${sr}</td><td>${ts}</td><td>${row.area||''}</td><td>${row.location||''}</td><td>${row.description||''}</td><td>${stored} ${unit}</td><td>${row.created_by||''}</td><td>${moved} ${unit}</td><td>${movedFrom}</td><td>${movedBy}</td><td>${retrieveHistory}</td><td>${moveHistory}</td><td>${remaining} ${unit}</td><td>${actions}</td>`;
-    tbl.appendChild(tr);
+  ["area", "location", "type", "description", "quantity", "materialSubType", "consumablesSubSubType", "descriptionRemark"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
   });
-  document.getElementById('searchResultsSection').style.display = 'block';
+  if (document.getElementById("unit")) document.getElementById("unit").selectedIndex = 0;
+  document.getElementById("documentSubType").selectedIndex = 0;
+  [
+    'colManufacturerField','colBrandField','colStationaryPhaseField','colPartNoField','colLengthField','colInternalDiameterField','colParticleSizeField','colPoreSizeField','colRemarksField',
+    'chemNameField','chemManufacturerField','chemGradeField','chemRecvDateField','chemExpDateField','chemRemarksField',
+    'matrixTypeField','matrixAnticoagulantField','matrixFractionsField','matrixRecvDateField','matrixExpDateField','matrixSupplierField','matrixRemarksField'
+  ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
 }
-db.ref('log').on('value', snap => { logData = snap.val() || {}; renderInventoryTable(); });
-db.ref('inventory').on('value', snap => {
-  inventoryData = snap.val() || {};
-  renderInventoryTable();
-  if (document.getElementById('quickSearchPanel')?.classList.contains('active')) renderQuickSearch();
-});
+
+// --- Move and Retrieve Logic ---
 function showMovePrompt(key, remaining, unit) {
   const overlay = document.createElement('div'); overlay.className = 'popup-overlay';
   const card = document.createElement('div'); card.className = 'popup-card';
@@ -617,36 +877,54 @@ function showRetrievePrompt(key, remaining, unit) {
     });
   };
 }
-function deleteEntry(key) {
-  db.ref("inventory/" + key).once('value').then(snap => {
-    const data = snap.val();
-    if (!data) return;
-    let reason = '';
-    while (!reason.trim()) {
-      reason = prompt("Enter reason for delete (compulsory):");
-      if (reason === null) return; // Cancelled
-      if (!reason.trim()) alert("Reason is required.");
-    }
-    db.ref("inventory/" + key).remove();
-    db.ref("log").push({
-      ref_id: key,
-      action: "user-delete",
-      user: document.getElementById("user").value,
-      timestamp: getISTTimestamp(),
-      remark: reason,
-      area: data.area || "",
-      location: data.location || "",
-      quantity: data.total || "",
-      unit: data.unit || "",
-      description: data.description || ""
+
+// --- Inventory/Tracker Table Rendering ---
+function renderInventoryTable() {
+  const tbl = document.getElementById('searchTableBody'); if (!tbl) return; tbl.innerHTML = '';
+  let entries = Object.entries(inventoryData || {});
+  entries = entries.filter(([_, row]) => row.remaining > 0);
+  entries.reverse().forEach(([key, row], i) => {
+    const sr = i + 1;
+    const ts = row.created_at || '';
+    const stored = row.total || 0;
+    const moved = row.moved || 0;
+    const movedFrom = row.moved_from || '';
+    const movedBy = row.moved_by || '';
+    const remaining = row.remaining || 0;
+    const unit = row.unit || '';
+    let retrieveHist = [];
+    Object.values(logData).forEach(l => {
+      if (l.ref_id === key && l.action === 'retrieve')
+        retrieveHist.push(`${l.quantity} ${l.unit} | ${l.remark || ''} @${l.timestamp} by ${l.user}`);
     });
+    const retrieveHistory = retrieveHist.join('<br>');
+    let moveHist = [];
+    Object.values(logData || {}).forEach(l => {
+      if (l.ref_id === key && (l.action === 'move-in' || l.action === 'move-out'))
+        moveHist.push(`${l.action === 'move-in' ? 'IN' : 'OUT'}: ${l.quantity} ${l.unit} | ${l.remark || ''} @${l.timestamp} by ${l.user}`);
+    });
+    const moveHistory = moveHist.join('<br>');
+    const role = document.getElementById('role') ? document.getElementById('role').value : "";
+    let actions = '';
+    if (['Analyst', 'Group Leader', 'HOD'].includes(role)) {
+      actions += `<button class="btn btn-sm" onclick="showRetrievePrompt('${key}',${remaining},'${unit}')">Retrieve</button>`;
+      actions += `<button class="btn btn-secondary btn-sm" onclick="showMovePrompt('${key}',${remaining},'${unit}')">Move</button>`;
+    }
+    if (['Group Leader', 'HOD'].includes(role)) {
+      actions += `<button class="btn btn-danger btn-sm" onclick="deleteEntry('${key}')">Delete</button>`;
+    }
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td>${sr}</td><td>${ts}</td><td>${row.area||''}</td><td>${row.location||''}</td><td>${row.description||''}</td><td>${stored} ${unit}</td><td>${row.created_by||''}</td><td>${moved} ${unit}</td><td>${movedFrom}</td><td>${movedBy}</td><td>${retrieveHistory}</td><td>${moveHistory}</td><td>${remaining} ${unit}</td><td>${actions}</td>`;
+    tbl.appendChild(tr);
   });
 }
 
+// --- Quick Search Rendering ---
 function renderQuickSearch() {
-  const area = document.getElementById('quickArea').value;
-  const location = document.getElementById('quickLocation').value;
-  const desc = document.getElementById('quickDesc').value.toLowerCase();
+  const area = document.getElementById('quickArea') ? document.getElementById('quickArea').value : '';
+  const location = document.getElementById('quickLocation') ? document.getElementById('quickLocation').value : '';
+  const desc = document.getElementById('quickDesc') ? document.getElementById('quickDesc').value.toLowerCase() : '';
   const tbody = document.getElementById('quickSearchTableBody');
   tbody.innerHTML = '';
   let sr = 1;
@@ -669,6 +947,23 @@ function debouncedQuickSearch() {
   if (quickSearchTimeout) clearTimeout(quickSearchTimeout);
   quickSearchTimeout = setTimeout(renderQuickSearch, 300);
 }
+
+function updateSearchLocations() {
+  const area = document.getElementById('areaFilter').value;
+  const locFilter = document.getElementById('locationFilter');
+  locFilter.innerHTML = '<option value="">Select Location</option>';
+  if (drawerMap[area]) drawerMap[area].forEach(l => locFilter.appendChild(Object.assign(document.createElement('option'), { value: l, textContent: l })));
+}
+function updateQuickLocations() {
+  const area = document.getElementById('quickArea').value;
+  const locSel = document.getElementById('quickLocation');
+  locSel.innerHTML = '<option value="">Select Location</option>';
+  (drawerMap[area] || []).forEach(loc => {
+    locSel.appendChild(Object.assign(document.createElement('option'), { value: loc, textContent: loc }));
+  });
+}
+
+// --- Main Tracker Search Filtering ---
 let filterTimeout = null;
 function debouncedFilterInventory() {
   if (filterTimeout) clearTimeout(filterTimeout);
@@ -724,6 +1019,8 @@ function filterInventory() {
   });
   document.getElementById('searchResultsSection').style.display = 'block';
 }
+
+// --- Audit Log Rendering ---
 function renderAuditLog() {
   const tbody = document.getElementById('auditLogBody');
   tbody.innerHTML = '';
@@ -743,6 +1040,34 @@ function renderAuditLog() {
   });
 }
 
+// --- Delete Entry ---
+function deleteEntry(key) {
+  db.ref("inventory/" + key).once('value').then(snap => {
+    const data = snap.val();
+    if (!data) return;
+    let reason = '';
+    while (!reason.trim()) {
+      reason = prompt("Enter reason for delete (compulsory):");
+      if (reason === null) return;
+      if (!reason.trim()) alert("Reason is required.");
+    }
+    db.ref("inventory/" + key).remove();
+    db.ref("log").push({
+      ref_id: key,
+      action: "user-delete",
+      user: document.getElementById("user").value,
+      timestamp: getISTTimestamp(),
+      remark: reason,
+      area: data.area || "",
+      location: data.location || "",
+      quantity: data.total || "",
+      unit: data.unit || "",
+      description: data.description || ""
+    });
+  });
+}
+
+// --- Export Functions ---
 function exportQuickSearchToCSV() {
   let csv = "Sr No,Area,Location,Description,Remaining,Unit\n";
   const rows = document.querySelectorAll("#quickSearchTableBody tr");
@@ -801,17 +1126,239 @@ function exportLogToCSV() {
   a.click();
   document.body.removeChild(a);
 }
-document.querySelectorAll('aside li').forEach(li => {
-  li.addEventListener('click', () => {
-    document.querySelector('aside li.active').classList.remove('active');
-    li.classList.add('active');
-    document.querySelector('.view.active').classList.remove('active');
-    document.getElementById(li.dataset.view).classList.add('active');
-    if (li.dataset.view === "auditLogSection") renderAuditLog();
-    if (li.dataset.view === "quickSearchPanel") renderQuickSearch();
-    if (li.dataset.view === "searchSection") filterInventory();
+
+// --- Specialized Tab Renderers ---
+function renderMaterialSearch() {
+  const subType = document.getElementById('matSubType').value.toLowerCase();
+  const subSubType = document.getElementById('matSubSubType').value.toLowerCase();
+  const area = document.getElementById('matArea').value.toLowerCase();
+  const location = document.getElementById('matLocation').value.toLowerCase();
+  const desc = document.getElementById('matDesc').value.toLowerCase();
+  const body = document.getElementById('materialSearchBody');
+  body.innerHTML = '';
+  let sr = 1;
+  Object.entries(inventoryData).forEach(([key, row]) => {
+    if (row.type !== "Material" || row.remaining <= 0) return;
+    if ((subType && !(row.material_subtype||'').toLowerCase().includes(subType)) ||
+        (subSubType && !(row.consumables_subsubtype||'').toLowerCase().includes(subSubType)) ||
+        (area && !(row.area||'').toLowerCase().includes(area)) ||
+        (location && !(row.location||'').toLowerCase().includes(location)) ||
+        (desc && !(row.description||'').toLowerCase().includes(desc))) return;
+    body.innerHTML += `<tr>
+      <td>${sr++}</td>
+      <td>${row.material_subtype||''}</td>
+      <td>${row.consumables_subsubtype||''}</td>
+      <td>${row.area||''}</td>
+      <td>${row.location||''}</td>
+      <td>${row.description||''}</td>
+      <td>${row.remaining||''} ${row.unit||''}</td>
+      <td>
+        <button class="btn btn-sm" onclick="showRetrievePrompt('${key}',${row.remaining},'${row.unit}')">Retrieve</button>
+        <button class="btn btn-secondary btn-sm" onclick="showMovePrompt('${key}',${row.remaining},'${row.unit}')">Move</button>
+      </td>
+    </tr>`;
+  });
+}
+
+function renderDocumentSearch() {
+  const subType = document.getElementById('docSubType').value.toLowerCase();
+  const area = document.getElementById('docArea').value.toLowerCase();
+  const location = document.getElementById('docLocation').value.toLowerCase();
+  const desc = document.getElementById('docDesc').value.toLowerCase();
+  const body = document.getElementById('documentSearchBody');
+  body.innerHTML = '';
+  let sr = 1;
+  Object.entries(inventoryData).forEach(([key, row]) => {
+    if (row.type !== "Document" || row.remaining <= 0) return;
+    if ((subType && !(row.document_subtype||'').toLowerCase().includes(subType)) ||
+        (area && !(row.area||'').toLowerCase().includes(area)) ||
+        (location && !(row.location||'').toLowerCase().includes(location)) ||
+        (desc && !(row.description||'').toLowerCase().includes(desc))) return;
+    body.innerHTML += `<tr>
+      <td>${sr++}</td>
+      <td>${row.document_subtype||''}</td>
+      <td>${row.area||''}</td>
+      <td>${row.location||''}</td>
+      <td>${row.description||''}</td>
+      <td>${row.remaining||''} ${row.unit||''}</td>
+      <td>
+        <button class="btn btn-sm" onclick="showRetrievePrompt('${key}',${row.remaining},'${row.unit}')">Retrieve</button>
+        <button class="btn btn-secondary btn-sm" onclick="showMovePrompt('${key}',${row.remaining},'${row.unit}')">Move</button>
+      </td>
+    </tr>`;
+  });
+}
+
+function renderColumnSearch() {
+  const manu = document.getElementById('colManu').value.toLowerCase();
+  const brand = document.getElementById('colBrand').value.toLowerCase();
+  const station = document.getElementById('colStation').value.toLowerCase();
+  const part = document.getElementById('colPart').value.toLowerCase();
+  const length = document.getElementById('colLength').value.toLowerCase();
+  const intDia = document.getElementById('colIntDia').value.toLowerCase();
+  const partSize = document.getElementById('colPartSize').value.toLowerCase();
+  const pore = document.getElementById('colPore').value.toLowerCase();
+  const remark = document.getElementById('colRemark').value.toLowerCase();
+  const area = document.getElementById('colArea').value.toLowerCase();
+  const location = document.getElementById('colLocation').value.toLowerCase();
+  const body = document.getElementById('columnSearchBody');
+  body.innerHTML = '';
+  let sr = 1;
+  Object.entries(inventoryData).forEach(([key, row]) => {
+    if (row.type !== "Column" || row.remaining <= 0) return;
+    if ((manu && !(row.colManufacturer||'').toLowerCase().includes(manu)) ||
+        (brand && !(row.colBrand||'').toLowerCase().includes(brand)) ||
+        (station && !(row.colStationaryPhase||'').toLowerCase().includes(station)) ||
+        (part && !(row.colPartNo||'').toLowerCase().includes(part)) ||
+        (length && !(row.colLength||'').toLowerCase().includes(length)) ||
+        (intDia && !(row.colInternalDiameter||'').toLowerCase().includes(intDia)) ||
+        (partSize && !(row.colParticleSize||'').toLowerCase().includes(partSize)) ||
+        (pore && !(row.colPoreSize||'').toLowerCase().includes(pore)) ||
+        (remark && !(row.colRemarks||'').toLowerCase().includes(remark)) ||
+        (area && !(row.area||'').toLowerCase().includes(area)) ||
+        (location && !(row.location||'').toLowerCase().includes(location))) return;
+    body.innerHTML += `<tr>
+      <td>${sr++}</td>
+      <td>${row.colManufacturer||''}</td>
+      <td>${row.colBrand||''}</td>
+      <td>${row.colStationaryPhase||''}</td>
+      <td>${row.colPartNo||''}</td>
+      <td>${row.colLength||''}</td>
+      <td>${row.colInternalDiameter||''}</td>
+      <td>${row.colParticleSize||''}</td>
+      <td>${row.colPoreSize||''}</td>
+      <td>${row.colRemarks||''}</td>
+      <td>${row.area||''}</td>
+      <td>${row.location||''}</td>
+      <td>${row.remaining||''} ${row.unit||''}</td>
+      <td>
+        <button class="btn btn-sm" onclick="showRetrievePrompt('${key}',${row.remaining},'${row.unit}')">Retrieve</button>
+        <button class="btn btn-secondary btn-sm" onclick="showMovePrompt('${key}',${row.remaining},'${row.unit}')">Move</button>
+      </td>
+    </tr>`;
+  });
+}
+
+function renderChemicalSearch() {
+  const name = document.getElementById('chemName').value.toLowerCase();
+  const manu = document.getElementById('chemManu').value.toLowerCase();
+  const grade = document.getElementById('chemGrade').value.toLowerCase();
+  const recv = document.getElementById('chemRecv').value.toLowerCase();
+  const exp = document.getElementById('chemExp').value.toLowerCase();
+  const remark = document.getElementById('chemRemark').value.toLowerCase();
+  const area = document.getElementById('chemArea').value.toLowerCase();
+  const location = document.getElementById('chemLocation').value.toLowerCase();
+  const body = document.getElementById('chemicalSearchBody');
+  body.innerHTML = '';
+  let sr = 1;
+  Object.entries(inventoryData).forEach(([key, row]) => {
+    if (row.type !== "Chemical" || row.remaining <= 0) return;
+    if ((name && !(row.chemName||'').toLowerCase().includes(name)) ||
+        (manu && !(row.chemManufacturer||'').toLowerCase().includes(manu)) ||
+        (grade && !(row.chemGrade||'').toLowerCase().includes(grade)) ||
+        (recv && !(row.chemRecvDate||'').toLowerCase().includes(recv)) ||
+        (exp && !(row.chemExpDate||'').toLowerCase().includes(exp)) ||
+        (remark && !(row.chemRemarks||'').toLowerCase().includes(remark)) ||
+        (area && !(row.area||'').toLowerCase().includes(area)) ||
+        (location && !(row.location||'').toLowerCase().includes(location))) return;
+    body.innerHTML += `<tr>
+      <td>${sr++}</td>
+      <td>${row.chemName||''}</td>
+      <td>${row.chemManufacturer||''}</td>
+      <td>${row.chemGrade||''}</td>
+      <td>${row.chemRecvDate||''}</td>
+      <td>${row.chemExpDate||''}</td>
+      <td>${row.chemRemarks||''}</td>
+      <td>${row.area||''}</td>
+      <td>${row.location||''}</td>
+      <td>${row.remaining||''} ${row.unit||''}</td>
+      <td>
+        <button class="btn btn-sm" onclick="showRetrievePrompt('${key}',${row.remaining},'${row.unit}')">Retrieve</button>
+        <button class="btn btn-secondary btn-sm" onclick="showMovePrompt('${key}',${row.remaining},'${row.unit}')">Move</button>
+      </td>
+    </tr>`;
+  });
+}
+
+function renderBlankMatrixSearch() {
+  const type = document.getElementById('matType').value.toLowerCase();
+  const antico = document.getElementById('matAntico').value.toLowerCase();
+  const frac = document.getElementById('matFrac').value.toLowerCase();
+  const recv = document.getElementById('matRecv').value.toLowerCase();
+  const exp = document.getElementById('matExp').value.toLowerCase();
+  const supplier = document.getElementById('matSupplier').value.toLowerCase();
+  const remark = document.getElementById('matBMRemark').value.toLowerCase();
+  const area = document.getElementById('matBMArea').value.toLowerCase();
+  const location = document.getElementById('matBMLocation').value.toLowerCase();
+  const body = document.getElementById('blankMatrixSearchBody');
+  body.innerHTML = '';
+  let sr = 1;
+  Object.entries(inventoryData).forEach(([key, row]) => {
+    if (row.type !== "Blank Matrix" || row.remaining <= 0) return;
+    if ((type && !(row.matrixType||'').toLowerCase().includes(type)) ||
+        (antico && !(row.matrixAnticoagulant||'').toLowerCase().includes(antico)) ||
+        (frac && !(row.matrixFractions||'').toLowerCase().includes(frac)) ||
+        (recv && !(row.matrixRecvDate||'').toLowerCase().includes(recv)) ||
+        (exp && !(row.matrixExpDate||'').toLowerCase().includes(exp)) ||
+        (supplier && !(row.matrixSupplier||'').toLowerCase().includes(supplier)) ||
+        (remark && !(row.matrixRemarks||'').toLowerCase().includes(remark)) ||
+        (area && !(row.area||'').toLowerCase().includes(area)) ||
+        (location && !(row.location||'').toLowerCase().includes(location))) return;
+    body.innerHTML += `<tr>
+      <td>${sr++}</td>
+      <td>${row.matrixType||''}</td>
+      <td>${row.matrixAnticoagulant||''}</td>
+      <td>${row.matrixFractions||''}</td>
+      <td>${row.matrixRecvDate||''}</td>
+      <td>${row.matrixExpDate||''}</td>
+      <td>${row.matrixSupplier||''}</td>
+      <td>${row.matrixRemarks||''}</td>
+      <td>${row.area||''}</td>
+      <td>${row.location||''}</td>
+      <td>${row.remaining||''} ${row.unit||''}</td>
+      <td>
+        <button class="btn btn-sm" onclick="showRetrievePrompt('${key}',${row.remaining},'${row.unit}')">Retrieve</button>
+        <button class="btn btn-secondary btn-sm" onclick="showMovePrompt('${key}',${row.remaining},'${row.unit}')">Move</button>
+      </td>
+    </tr>`;
+  });
+}
+
+// --- Tab Switching Logic and Live Firebase Listeners ---
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('aside li').forEach(li => {
+    li.addEventListener('click', () => {
+      document.querySelector('aside li.active').classList.remove('active');
+      li.classList.add('active');
+      document.querySelector('.view.active').classList.remove('active');
+      document.getElementById(li.dataset.view).classList.add('active');
+      if (li.dataset.view === "auditLogSection") renderAuditLog();
+      if (li.dataset.view === "quickSearchPanel") renderQuickSearch();
+      if (li.dataset.view === "searchSection") filterInventory();
+      if (li.dataset.view === "materialSearchTab") renderMaterialSearch();
+      if (li.dataset.view === "documentSearchTab") renderDocumentSearch();
+      if (li.dataset.view === "columnSearchTab") renderColumnSearch();
+      if (li.dataset.view === "chemicalSearchTab") renderChemicalSearch();
+      if (li.dataset.view === "blankMatrixSearchTab") renderBlankMatrixSearch();
+    });
   });
 });
+
+db.ref('log').on('value', snap => { logData = snap.val() || {}; renderInventoryTable(); renderAuditLog(); });
+db.ref('inventory').on('value', snap => {
+  inventoryData = snap.val() || {};
+  renderInventoryTable();
+  renderQuickSearch();
+  filterInventory();
+  renderMaterialSearch();
+  renderDocumentSearch();
+  renderColumnSearch();
+  renderChemicalSearch();
+  renderBlankMatrixSearch();
+});
+
 </script>
 </body>
 </html>
+
+
