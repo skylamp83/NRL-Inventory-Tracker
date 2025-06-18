@@ -470,14 +470,25 @@ const role = allowedEmails[email] || null;
       document.getElementById('user').value = email;
       document.getElementById('role').value = role;
       populateFilters();
-      db.ref('inventory').once('value').then(s => {
-        inventoryData = s.val() || {};
-        renderInventoryTable();
-      });
-      db.ref('log').once('value').then(s => {
-        logData = s.val() || {};
-        renderInventoryTable();
-      });    })
+     db.ref('inventory').once('value')
+  .then(s => {
+    inventoryData = s.val() || {};
+    console.log("Inventory loaded", inventoryData);
+    renderInventoryTable();
+  })
+  .catch(e => console.error("Error loading inventory:", e));
+
+db.ref('log').once('value')
+  .then(s => {
+    logData = s.val() || {};
+    console.log("Log loaded", logData);
+    renderInventoryTable();
+  })
+  .catch(e => console.error("Error loading log:", e));
+
+
+
+    })
     .catch(error => {
       console.error(error);
       document.getElementById('loginMessage').innerHTML = '<div class="error">Login failed</div>';
